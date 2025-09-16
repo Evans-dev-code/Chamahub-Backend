@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 public class LoanApplicationDTO {
     public Long id;
+    public Long memberId;
+    public Long chamaId;
     public String fullName;
     public String email;
     public String phone;
@@ -18,7 +20,8 @@ public class LoanApplicationDTO {
     public Double totalRepayment;
     public String status;
     public LocalDateTime createdAt;
-    public Long userId;
+
     public String username;
+    public Double remainingBalance;
 }
 

@@ -1,6 +1,7 @@
 package com.example.loanmanagement.Loanapplication;
 
-import com.example.loanmanagement.User.UserEntity;
+import com.example.loanmanagement.Member.MemberEntity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
@@ -34,8 +35,9 @@ public class LoanApplicationEntity {
     private LocalDate applicationDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private UserEntity user;
+    @JoinColumn(name = "member_id")
+    @JsonIgnore
+    private MemberEntity member;
 
     public LoanApplicationEntity() {
         this.status = "PENDING";
@@ -162,11 +164,6 @@ public class LoanApplicationEntity {
         this.applicationDate = applicationDate;
     }
 
-    public UserEntity getUser() {
-        return user;
-    }
-
-    public void setUser(UserEntity user) {
-        this.user = user;
-    }
+    public MemberEntity getMember() { return member; }
+    public void setMember(MemberEntity member) { this.member = member; }
 }

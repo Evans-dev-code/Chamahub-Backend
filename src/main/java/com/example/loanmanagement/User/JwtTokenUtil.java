@@ -21,7 +21,8 @@ public class JwtTokenUtil {
     public String generateToken(UserEntity user) {
         return Jwts.builder()
                 .setSubject(user.getUsername())
-                .claim("role", user.getRole()) // ✅ Add role claim
+                .claim("role", user.getRole())
+                .claim("userId", user.getId())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(SIGNING_KEY, SignatureAlgorithm.HS256)
@@ -46,5 +47,35 @@ public class JwtTokenUtil {
     public String extractRole(String token) {
         return getClaims(token).get("role", String.class);
     }
+
+    public Long extractUserId(String token) {
+        Object userIdObj = getClaims(token).get("userId");
+
+        if (userIdObj == null) {
+            return null;
+        }
+
+        if (userIdObj instanceof Integer) {
+            return ((Integer) userIdObj).longValue();
+        } else if (userIdObj instanceof Long) {
+            return (Long) userIdObj;
+        } else if (userIdObj instanceof String) {
+            try {
+                return Long.parseLong((String) userIdObj);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        } else if (userIdObj instanceof Double) {
+            return ((Double) userIdObj).longValue();
+        } else {
+            // fallback - try to parse string representation
+            try {
+                return Long.parseLong(userIdObj.toString());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+    }
+
 
 }

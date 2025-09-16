@@ -7,6 +7,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +20,8 @@ import java.util.List;
 
 @Component
 public class JwtTokenFilter extends OncePerRequestFilter {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtTokenFilter.class);
 
     private final JwtTokenUtil jwtTokenUtil;
 
@@ -36,42 +40,58 @@ public class JwtTokenFilter extends OncePerRequestFilter {
 
         if (tokenHeader != null && tokenHeader.startsWith("Bearer ")) {
             String token = tokenHeader.substring(7); // strip "Bearer "
-            System.out.println("🔐 JWT token detected: " + token);
+            logger.info("🔐 JWT token detected: {}", token);
 
             try {
                 String username = jwtTokenUtil.extractUsername(token);
-                String role = jwtTokenUtil.extractRole(token); // e.g., "USER" or "ADMIN"
+                String role = jwtTokenUtil.extractRole(token);
+                Long userId = jwtTokenUtil.extractUserId(token); // NEW: extract user ID
 
-                System.out.println("👤 Extracted Username: " + username);
-                System.out.println("🔐 Extracted Role: " + role);
+                if (username == null || role == null || userId == null) {
+                    logger.warn("⚠️ Missing JWT claims (username, role or userId)");
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.getWriter().write("Invalid JWT token claims");
+                    return;
+                }
+
+                logger.info("👤 Extracted Username: {}", username);
+                logger.info("🆔 Extracted User ID: {}", userId);
+                logger.info("🔐 Extracted Role: {}", role);
 
                 SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
-                System.out.println("✅ Granted Authority: " + authority.getAuthority());
+                logger.info("✅ Granted Authority: {}", authority.getAuthority());
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(username, null, List.of(authority));
 
+                // Attach userId to request attribute for controllers to access
+                request.setAttribute("userId", userId);
+                logger.info("✅ userId set in request attributes: {}", request.getAttribute("userId"));
+                logger.info("JWT Filter applied to request path: {}", request.getRequestURI());
+
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                System.out.println("✅ Authentication set in SecurityContext");
+                logger.info("✅ Authentication set in SecurityContext");
 
             } catch (ExpiredJwtException e) {
-                System.out.println("⚠️ JWT token has expired");
+                logger.warn("⚠️ JWT token has expired");
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.getWriter().write("JWT token has expired");
                 return;
             } catch (MalformedJwtException e) {
-                System.out.println("⚠️ Malformed JWT token");
+                logger.warn("⚠️ Malformed JWT token");
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.getWriter().write("Malformed JWT token");
                 return;
             } catch (JwtException | IllegalArgumentException e) {
-                System.out.println("⚠️ Invalid JWT token: " + e.getMessage());
+                logger.warn("⚠️ Invalid JWT token: {}", e.getMessage());
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.getWriter().write("Invalid JWT token");
                 return;
             }
         } else {
-            System.out.println("❌ No Authorization header or wrong format");
+            logger.info("❌ No Authorization header or wrong format");
+            // Optional: Clear context if no valid token
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response); // continue filter chain

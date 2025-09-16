@@ -16,18 +16,30 @@ public class UserLoanApplicationController {
         this.loanService = loanService;
     }
 
-    @PostMapping
+    // ✅ User applies for a loan within a specific chama
+    @PostMapping("/chama/{chamaId}")
     public ResponseEntity<LoanApplicationDTO> applyLoan(
             @RequestBody LoanApplicationDTO dto,
+            @PathVariable Long chamaId,
             Authentication auth
     ) {
         String username = auth.getName();
-        return ResponseEntity.ok(loanService.applyForLoan(dto, username));
+        return ResponseEntity.ok(loanService.applyForLoan(dto, username, chamaId));
     }
 
-    @GetMapping
-    public ResponseEntity<List<LoanApplicationDTO>> getMyLoans(Authentication auth) {
+    // ✅ User fetches their own loan applications for a chama
+    @GetMapping("/chama/{chamaId}")
+    public ResponseEntity<List<LoanApplicationDTO>> getMyLoans(
+            @PathVariable Long chamaId,
+            Authentication auth
+    ) {
         String username = auth.getName();
-        return ResponseEntity.ok(loanService.getUserApplications(username));
+        return ResponseEntity.ok(loanService.getUserApplications(username, chamaId));
+    }
+
+    // ✅ User checks status of a specific loan
+    @GetMapping("/loan-status/{loanId}")
+    public ResponseEntity<LoanStatusDTO> getUserLoanStatus(@PathVariable Long loanId) {
+        return ResponseEntity.ok(loanService.getLoanStatus(loanId));
     }
 }

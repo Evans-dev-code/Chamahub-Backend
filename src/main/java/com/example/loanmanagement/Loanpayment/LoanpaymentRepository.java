@@ -9,4 +9,7 @@ import java.util.List;
 public interface LoanpaymentRepository extends JpaRepository<LoanpaymentEntity, Long> {
     List<LoanpaymentEntity> findByLoan(LoanApplicationEntity loan);
     List<LoanpaymentEntity> findByPaidBy(UserEntity user);
+
+    // ✅ New chama-aware query
+    List<LoanpaymentEntity> findByLoan_Member_Chama_Id(Long chamaId);
 }

@@ -41,51 +41,21 @@ public class LoanpaymentEntity {
     }
 
     // --- Getters and Setters ---
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public LoanApplicationEntity getLoan() { return loan; }
+    public void setLoan(LoanApplicationEntity loan) { this.loan = loan; }
 
-    public LoanApplicationEntity getLoan() {
-        return loan;
-    }
+    public UserEntity getPaidBy() { return paidBy; }
+    public void setPaidBy(UserEntity paidBy) { this.paidBy = paidBy; }
 
-    public void setLoan(LoanApplicationEntity loan) {
-        this.loan = loan;
-    }
+    public Double getAmountPaid() { return amountPaid; }
+    public void setAmountPaid(Double amountPaid) { this.amountPaid = amountPaid; }
 
-    public UserEntity getPaidBy() {
-        return paidBy;
-    }
+    public LocalDate getPaymentDate() { return paymentDate; }
+    public void setPaymentDate(LocalDate paymentDate) { this.paymentDate = paymentDate; }
 
-    public void setPaidBy(UserEntity paidBy) {
-        this.paidBy = paidBy;
-    }
-
-    public Double getAmountPaid() {
-        return amountPaid;
-    }
-
-    public void setAmountPaid(Double amountPaid) {
-        this.amountPaid = amountPaid;
-    }
-
-    public LocalDate getPaymentDate() {
-        return paymentDate;
-    }
-
-    public void setPaymentDate(LocalDate paymentDate) {
-        this.paymentDate = paymentDate;
-    }
-
-    public boolean isPaidByAdmin() {
-        return paidByAdmin;
-    }
-
-    public void setPaidByAdmin(boolean paidByAdmin) {
-        this.paidByAdmin = paidByAdmin;
-    }
+    public boolean isPaidByAdmin() { return paidByAdmin; }
+    public void setPaidByAdmin(boolean paidByAdmin) { this.paidByAdmin = paidByAdmin; }
 }

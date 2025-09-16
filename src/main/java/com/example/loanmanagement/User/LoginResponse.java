@@ -6,6 +6,7 @@ public class LoginResponse {
     private int statusCode;
     private String message;
     private UserEntity user;
+    private Long userId;
     private String role;
 
     // Constructor for successful login (with token + user)
@@ -13,6 +14,7 @@ public class LoginResponse {
         this.token = token;
         this.statusCode = 200;
         this.message = "Login successful";
+        this.userId = user.getId();
         this.role = user.getRole();
 
         // Sanitize sensitive data
@@ -64,6 +66,14 @@ public class LoginResponse {
 
     public void setUser(UserEntity user) {
         this.user = user;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     // Optional static helpers for quick responses
