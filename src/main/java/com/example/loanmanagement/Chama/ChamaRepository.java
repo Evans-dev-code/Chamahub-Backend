@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface ChamaRepository extends JpaRepository<ChamaEntity, Long> {
     Optional<ChamaEntity> findByJoinCode(String joinCode);
     boolean existsByName(String name);
+    Optional<ChamaEntity> findById(Long id);
 }

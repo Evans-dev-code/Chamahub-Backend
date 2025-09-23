@@ -35,9 +35,6 @@ dependencies {
 	implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
 	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
-	// Servlet API (Jakarta)
-	implementation 'jakarta.servlet:jakarta.servlet-api:6.0.0'
-
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
@@ -48,13 +45,12 @@ dependencies {
 	// Devtools for hot reload
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
-	// ✅ MySQL JDBC driver (updated to fix CVE-2023-22102)
+	// ✅ MySQL JDBC driver
 	runtimeOnly 'com.mysql:mysql-connector-j:9.0.0'
 
 	// Testing
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {
