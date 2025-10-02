@@ -41,12 +41,12 @@ public class ContributionDTO {
     private String notes;
 
     // Additional fields for response DTOs
-    private String memberName;
-    private String chamaName;
+    private String memberName; // Username of the member
+    private String chamaName;  // Name of the chama
     private BigDecimal expectedAmount;
     private Boolean isLate;
 
-    // Constructor for creating from entity
+    // Constructor for creating DTO from entity
     public ContributionDTO(ContributionEntity entity) {
         this.id = entity.getId();
         this.amount = entity.getAmount();
@@ -58,7 +58,7 @@ public class ContributionDTO {
 
         if (entity.getMember() != null) {
             this.memberId = entity.getMember().getId();
-            this.memberName = entity.getMember().getUser().getUsername();
+            this.memberName = entity.getMember().getUser().getUsername(); // Get name from logged-in user
         }
 
         if (entity.getChama() != null) {

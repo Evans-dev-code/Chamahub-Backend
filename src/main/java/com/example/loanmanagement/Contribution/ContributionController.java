@@ -1,10 +1,11 @@
 package com.example.loanmanagement.Contribution;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -18,13 +19,15 @@ public class ContributionController {
     @Autowired
     private ContributionService contributionService;
 
+    // ===== Add a new contribution =====
     @PostMapping
-    public ResponseEntity<?> addContribution(
-            @Valid @RequestBody ContributionDTO dto,
-            Authentication auth) {
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<?> addContribution(@Valid @RequestBody ContributionDTO dto, HttpServletRequest request) {
         try {
-            log.info("Adding contribution for member {} in chama {}", dto.getMemberId(), dto.getChamaId());
-            ContributionDTO result = contributionService.addContribution(dto);
+            Long userId = (Long) request.getAttribute("userId");
+            if (userId == null) throw new RuntimeException("Unauthorized: userId missing");
+
+            ContributionDTO result = contributionService.addContribution(dto, userId);
             return ResponseEntity.ok(result);
         } catch (RuntimeException e) {
             log.error("Error adding contribution: {}", e.getMessage());
@@ -32,38 +35,48 @@ public class ContributionController {
         }
     }
 
-    @GetMapping("/chama/{chamaId}")
-    public ResponseEntity<?> getContributionsByChama(
-            @PathVariable Long chamaId,
-            @RequestParam(required = false) String cycle) {
+    // ===== Get contributions for a member =====
+    @GetMapping("/member")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<?> getContributionsByMember(
+            @RequestParam(required = false) Long memberId,
+            @RequestParam Long chamaId,
+            @RequestParam(required = false) String cycle,
+            HttpServletRequest request) {
+
         try {
-            log.info("Fetching contributions for chama {} and cycle {}", chamaId, cycle);
-            List<ContributionDTO> contributions = contributionService.getContributionsByChama(chamaId, cycle);
+            Long userId = (Long) request.getAttribute("userId");
+            if (userId == null) throw new RuntimeException("Unauthorized: userId missing");
+
+            // If the user is not an admin, only allow fetching their own contributions
+            boolean isAdmin = request.isUserInRole("ADMIN");
+            if (!isAdmin) memberId = userId;
+            else if (memberId == null) return ResponseEntity.badRequest().body("Admin must provide memberId");
+
+            List<ContributionDTO> contributions = contributionService.getContributionsByMember(memberId, chamaId, cycle);
             return ResponseEntity.ok(contributions);
         } catch (RuntimeException e) {
-            log.error("Error fetching chama contributions: {}", e.getMessage());
+            log.error("Error fetching member contributions: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
     }
 
-    @GetMapping("/member/{memberId}")
-    public ResponseEntity<?> getContributionsByMember(@PathVariable Long memberId) {
-        try {
-            log.info("Fetching contributions for member {}", memberId);
-            List<ContributionDTO> contributions = contributionService.getContributionsByMember(memberId);
-            return ResponseEntity.ok(contributions);
-        } catch (RuntimeException e) {
-            log.error("Error fetching member contributions: {}", e.getMessage());
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/member/{memberId}/owed")
+    // ===== Get owed amount =====
+    @GetMapping("/member/owed")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<?> getOwedAmount(
-            @PathVariable Long memberId,
-            @RequestParam Long chamaId) {
+            @RequestParam(required = false) Long memberId,
+            @RequestParam Long chamaId,
+            HttpServletRequest request) {
+
         try {
-            log.info("Calculating owed amount for member {} in chama {}", memberId, chamaId);
+            Long userId = (Long) request.getAttribute("userId");
+            if (userId == null) throw new RuntimeException("Unauthorized: userId missing");
+
+            boolean isAdmin = request.isUserInRole("ADMIN");
+            if (!isAdmin) memberId = userId;
+            else if (memberId == null) return ResponseEntity.badRequest().body("Admin must provide memberId");
+
             ContributionOwedDTO owedInfo = contributionService.calculateOwedAmount(memberId, chamaId);
             return ResponseEntity.ok(owedInfo);
         } catch (RuntimeException e) {
@@ -72,10 +85,22 @@ public class ContributionController {
         }
     }
 
+    // ===== Chama contributions & totals =====
+    @GetMapping("/chama/{chamaId}")
+    public ResponseEntity<?> getContributionsByChama(@PathVariable Long chamaId,
+                                                     @RequestParam(required = false) String cycle) {
+        try {
+            List<ContributionDTO> contributions = contributionService.getContributionsByChama(chamaId, cycle);
+            return ResponseEntity.ok(contributions);
+        } catch (RuntimeException e) {
+            log.error("Error fetching chama contributions: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
     @GetMapping("/chama/{chamaId}/total")
-    public ResponseEntity<?> getTotalContributions(
-            @PathVariable Long chamaId,
-            @RequestParam(required = false) String cycle) {
+    public ResponseEntity<?> getTotalContributions(@PathVariable Long chamaId,
+                                                   @RequestParam(required = false) String cycle) {
         try {
             BigDecimal total = contributionService.calculateTotalContributions(chamaId, cycle);
             return ResponseEntity.ok(total);
@@ -88,7 +113,6 @@ public class ContributionController {
     @GetMapping("/chama/{chamaId}/payout")
     public ResponseEntity<?> getNextPayout(@PathVariable Long chamaId) {
         try {
-            log.info("Calculating next payout for chama {}", chamaId);
             MemberPayoutDTO payout = contributionService.calculateNextPayout(chamaId);
             return ResponseEntity.ok(payout);
         } catch (RuntimeException e) {

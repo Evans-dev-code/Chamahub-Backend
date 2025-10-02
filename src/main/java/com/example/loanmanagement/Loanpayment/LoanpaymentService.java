@@ -7,11 +7,14 @@ import com.example.loanmanagement.User.UserEntity;
 import com.example.loanmanagement.User.UserRepository;
 import com.example.loanmanagement.Chama.ChamaEntity;
 import com.example.loanmanagement.Chama.ChamaRepository;
+import com.example.loanmanagement.User.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,6 +34,9 @@ public class LoanpaymentService {
 
     @Autowired
     private ChamaRepository chamaRepository;
+
+    @Autowired
+    private EmailService emailService;
 
     // ✅ User payment with chama validation
     public LoanpaymentEntity makePaymentWithChamaValidation(LoanpaymentDTO dto, String username, Long chamaId) {
@@ -106,7 +112,7 @@ public class LoanpaymentService {
         return processPayment(dto, loan, user);
     }
 
-    // ✅ Common payment processing
+    // ✅ Common payment processing with notifications
     private LoanpaymentEntity processPayment(LoanpaymentDTO dto, LoanApplicationEntity loan, UserEntity user) {
         if (!"APPROVED".equalsIgnoreCase(loan.getStatus())) {
             throw new RuntimeException("Loan must be approved before payment");
@@ -126,11 +132,73 @@ public class LoanpaymentService {
         payment.setPaidBy(user);
         payment.setAmountPaid(dto.getAmountPaid());
         payment.setPaidByAdmin(dto.isPaidByAdmin());
-        payment.setPaymentDate(dto.getPaymentDate() != null ? dto.getPaymentDate() : java.time.LocalDate.now());
+        payment.setPaymentDate(dto.getPaymentDate() != null ? dto.getPaymentDate() : LocalDate.now());
 
         LoanpaymentEntity saved = paymentRepository.save(payment);
         logger.info("Payment saved successfully with ID: {}", saved.getId());
+
+        // ✅ Send email confirmation
+        String userEmail = user.getEmail();
+        String fullName = user.getFullName();
+        String subject = "Payment Confirmation - Loan #" + loan.getId();
+        String body = "Hello " + fullName + ",\n\nWe have received your payment of Ksh " +
+                dto.getAmountPaid() + " on " + payment.getPaymentDate() +
+                " for Loan #" + loan.getId() + ".\n\n" +
+                "Total Paid: Ksh " + newTotal + "\nOutstanding Balance: Ksh " +
+                (loan.getTotalRepayment() - newTotal) +
+                "\n\nThank you for your payment.\n\nBest regards,\nChama Admin";
+
+        emailService.sendGenericEmail(userEmail, subject, body);
+
+        // ✅ If loan is fully paid, notify user
+        if (newTotal >= loan.getTotalRepayment()) {
+            String fullPaymentSubject = "Loan Fully Repaid - Congratulations!";
+            String fullPaymentBody = "Hello " + fullName + ",\n\nCongratulations! 🎉\n" +
+                    "You have successfully repaid Loan #" + loan.getId() + " in full.\n\n" +
+                    "This loan is now marked as cleared.\n\nBest regards,\nChama Admin";
+
+            emailService.sendGenericEmail(userEmail, fullPaymentSubject, fullPaymentBody);
+        }
+
         return saved;
+    }
+
+    // ✅ Optional reminders & notices
+    public void sendDueDateReminder(LoanApplicationEntity loan) {
+        UserEntity user = loan.getMember().getUser();
+        String subject = "Loan Payment Reminder - Loan #" + loan.getId();
+        String body = "Hello " + user.getFullName() + ",\n\nThis is a friendly reminder that your loan repayment " +
+                "is due on " + loan.getDueDate() + ".\n\nPlease ensure timely payment to avoid penalties.\n\nBest,\nChama Admin";
+        emailService.sendGenericEmail(user.getEmail(), subject, body);
+    }
+
+    public void sendLatePaymentNotice(LoanApplicationEntity loan) {
+        UserEntity user = loan.getMember().getUser();
+        String subject = "Late Payment Notice - Loan #" + loan.getId();
+        String body = "Hello " + user.getFullName() + ",\n\nYour repayment for Loan #" + loan.getId() +
+                " is overdue. Please make the payment immediately to avoid additional penalties.\n\nBest,\nChama Admin";
+        emailService.sendGenericEmail(user.getEmail(), subject, body);
+    }
+
+    // ✅ Scheduled tasks
+    @Scheduled(cron = "0 8 * * * ?") // Every day at 8 AM
+    public void sendDailyDueDateReminders() {
+        logger.info("Running daily due date reminders...");
+        List<LoanApplicationEntity> loans = loanRepository.findAll();
+        loans.stream()
+                .filter(loan -> "APPROVED".equalsIgnoreCase(loan.getStatus()))
+                .filter(loan -> loan.getDueDate() != null && loan.getDueDate().isEqual(LocalDate.now()))
+                .forEach(this::sendDueDateReminder);
+    }
+
+    @Scheduled(cron = "0 18 * * * ?") // Every day at 6 PM
+    public void sendDailyLatePaymentNotices() {
+        logger.info("Running daily late payment notices...");
+        List<LoanApplicationEntity> loans = loanRepository.findAll();
+        loans.stream()
+                .filter(loan -> "APPROVED".equalsIgnoreCase(loan.getStatus()))
+                .filter(loan -> loan.getDueDate() != null && loan.getDueDate().isBefore(LocalDate.now()))
+                .forEach(this::sendLatePaymentNotice);
     }
 
     // ✅ Get user payments in chama

@@ -69,4 +69,21 @@ public class UserController {
                     .body(new LoginResponse(401, "Unauthorized: " + e.getMessage()));
         }
     }
+
+    @GetMapping("/check-username/{username}")
+    public ResponseEntity<?> checkUsername(@PathVariable String username) {
+        boolean available = !userService.existsByUsername(username);
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("available", available);
+        return ResponseEntity.ok(response);
+    }
+
+    // ✅ New endpoint for frontend real-time email availability
+    @GetMapping("/check-email/{email}")
+    public ResponseEntity<?> checkEmail(@PathVariable String email) {
+        boolean available = !userService.existsByEmail(email);
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("available", available);
+        return ResponseEntity.ok(response);
+    }
 }

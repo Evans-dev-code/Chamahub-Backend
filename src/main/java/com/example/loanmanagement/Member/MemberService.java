@@ -26,7 +26,7 @@ public class MemberService {
         this.chamaRepository = chamaRepository;
     }
 
-    // ✅ Member joins chama via joinCode
+    // Member joins chama via joinCode
     public MemberEntity joinChama(String userEmail, MemberDTO dto) {
         // 1. Fetch user by email
         UserEntity user = userRepository.findByEmail(userEmail)
@@ -54,7 +54,7 @@ public class MemberService {
         return memberRepository.save(member);
     }
 
-    // ✅ Add new method in MemberService
+    // Add a new member (without chama association)
     public MemberEntity addMember(MemberDTO dto) {
         UserEntity user = userRepository.findById(dto.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + dto.getUserId()));
@@ -64,22 +64,29 @@ public class MemberService {
                 dto.getChamaRole() != null ? dto.getChamaRole() : ChamaRole.MEMBER,
                 dto.getJoinedDate() != null ? dto.getJoinedDate() : LocalDate.now(),
                 user,
-                null // ✅ no chama on approval
+                null // No chama assigned yet
         );
 
         return memberRepository.save(member);
     }
 
-
+    // Fetch all members
     public List<MemberEntity> getAllMembers() {
         return memberRepository.findAll();
     }
 
+    // Fetch members of a specific chama
     public List<MemberEntity> getMembersByChama(Long chamaId) {
-        return memberRepository.findByChamaId(chamaId);
+        return memberRepository.findByChama_Id(chamaId);
     }
 
+    // Fetch a member by user ID
     public Optional<MemberEntity> getMemberByUserId(Long userId) {
-        return memberRepository.findByUserId(userId);
+        return memberRepository.findByUser_Id(userId);
+    }
+
+    // Fetch a member by user ID and chama ID
+    public Optional<MemberEntity> getMemberByUserIdAndChamaId(Long userId, Long chamaId) {
+        return memberRepository.findByUser_IdAndChama_Id(userId, chamaId);
     }
 }

@@ -13,54 +13,56 @@ import java.util.Optional;
 @Repository
 public interface ContributionRepository extends JpaRepository<ContributionEntity, Long> {
 
-    // Find contributions by chama and cycle
-    List<ContributionEntity> findByChamaIdAndCycle(Long chamaId, String cycle);
-
-    // Find contributions by member
-    List<ContributionEntity> findByMemberId(Long memberId);
-
-    // Find contributions by member and chama
-    List<ContributionEntity> findByMemberIdAndChamaId(Long memberId, Long chamaId);
-
-    // Find all contributions for a chama
+    // ===== By Chama =====
     List<ContributionEntity> findByChamaId(Long chamaId);
 
-    // Find contributions by chama and status
+    List<ContributionEntity> findByChamaIdAndCycle(Long chamaId, String cycle);
+
     List<ContributionEntity> findByChamaIdAndStatus(Long chamaId, ContributionEntity.ContributionStatus status);
 
-    // Find member's contributions for specific chama and cycle
-    Optional<ContributionEntity> findByMemberIdAndChamaIdAndCycle(Long memberId, Long chamaId, String cycle);
-
-    // Get total contributions by member in a chama
-    @Query("SELECT SUM(c.amount) FROM ContributionEntity c WHERE c.member.id = :memberId AND c.chama.id = :chamaId")
-    BigDecimal getTotalContributionsByMemberAndChama(@Param("memberId") Long memberId, @Param("chamaId") Long chamaId);
-
-    // Get total contributions for a chama in a specific cycle
-    @Query("SELECT SUM(c.amount) FROM ContributionEntity c WHERE c.chama.id = :chamaId AND c.cycle = :cycle")
-    BigDecimal getTotalContributionsByChamaAndCycle(@Param("chamaId") Long chamaId, @Param("cycle") String cycle);
-
-    // Find contributions within date range
-    @Query("SELECT c FROM ContributionEntity c WHERE c.chama.id = :chamaId AND c.datePaid BETWEEN :startDate AND :endDate")
-    List<ContributionEntity> findByChamaIdAndDatePaidBetween(@Param("chamaId") Long chamaId,
-                                                             @Param("startDate") LocalDate startDate,
-                                                             @Param("endDate") LocalDate endDate);
-
-    // Get pending contributions for a member
-    @Query("SELECT c FROM ContributionEntity c WHERE c.member.id = :memberId AND c.status = 'PENDING'")
-    List<ContributionEntity> findPendingContributionsByMember(@Param("memberId") Long memberId);
-
-    // Get late contributions for a chama
     List<ContributionEntity> findByChamaIdAndStatusOrderByDatePaidDesc(Long chamaId, ContributionEntity.ContributionStatus status);
 
-    // Count contributions by member and chama
-    @Query("SELECT COUNT(c) FROM ContributionEntity c WHERE c.member.id = :memberId AND c.chama.id = :chamaId")
-    Long countContributionsByMemberAndChama(@Param("memberId") Long memberId, @Param("chamaId") Long chamaId);
+    // ===== By Member =====
+    List<ContributionEntity> findByMemberId(Long memberId);
 
-    // Find latest contribution by member in chama
-    @Query("SELECT c FROM ContributionEntity c WHERE c.member.id = :memberId AND c.chama.id = :chamaId ORDER BY c.datePaid DESC LIMIT 1")
-    Optional<ContributionEntity> findLatestContributionByMemberAndChama(@Param("memberId") Long memberId, @Param("chamaId") Long chamaId);
+    List<ContributionEntity> findByMemberIdAndChamaId(Long memberId, Long chamaId);
 
-    // Get distinct cycles for a chama (for reporting)
+    List<ContributionEntity> findByMemberIdAndChamaIdAndCycle(Long memberId, Long chamaId, String cycle);
+
+    List<ContributionEntity> findByMemberIdAndStatus(Long memberId, ContributionEntity.ContributionStatus status);
+
+    // Latest contribution for a member in a chama
+    Optional<ContributionEntity> findFirstByMemberIdAndChamaIdOrderByDatePaidDesc(Long memberId, Long chamaId);
+
+    // Latest contribution for a member in a chama and cycle (needed for owed calculations)
+    Optional<ContributionEntity> findFirstByMemberIdAndChamaIdAndCycleOrderByDatePaidDesc(
+            Long memberId, Long chamaId, String cycle
+    );
+
+    Long countByMemberIdAndChamaId(Long memberId, Long chamaId);
+
+    // ===== Date Range Queries =====
+    @Query("SELECT c FROM ContributionEntity c WHERE c.chama.id = :chamaId AND c.datePaid BETWEEN :startDate AND :endDate")
+    List<ContributionEntity> findByChamaIdAndDatePaidBetween(
+            @Param("chamaId") Long chamaId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    // ===== Total Contributions =====
+    @Query("SELECT COALESCE(SUM(c.amount), 0) FROM ContributionEntity c WHERE c.member.id = :memberId AND c.chama.id = :chamaId")
+    BigDecimal getTotalContributionsByMemberAndChama(
+            @Param("memberId") Long memberId,
+            @Param("chamaId") Long chamaId
+    );
+
+    @Query("SELECT COALESCE(SUM(c.amount), 0) FROM ContributionEntity c WHERE c.chama.id = :chamaId AND (:cycle IS NULL OR c.cycle = :cycle)")
+    BigDecimal getTotalContributionsByChamaAndCycle(
+            @Param("chamaId") Long chamaId,
+            @Param("cycle") String cycle
+    );
+
+    // ===== Distinct Cycles =====
     @Query("SELECT DISTINCT c.cycle FROM ContributionEntity c WHERE c.chama.id = :chamaId ORDER BY c.cycle")
     List<String> getDistinctCyclesByChamaId(@Param("chamaId") Long chamaId);
 }

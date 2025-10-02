@@ -35,17 +35,18 @@ public class AdminLoanApplicationController {
         }
     }
 
-    // ✅ Admin can update loan status
+    // ✅ Admin can update loan status (now supporting 4 arguments)
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updateStatus(
             @PathVariable Long id,
             @RequestParam String status,
+            @RequestParam String adminUsername,  // New argument
             @RequestParam Long chamaId
     ) {
-        logger.info("🔍 Admin updating loan {} status to {} in chama {}", id, status, chamaId);
+        logger.info("🔍 Admin {} updating loan {} status to {} in chama {}", adminUsername, id, status, chamaId);
 
         try {
-            LoanApplicationDTO updatedLoan = loanService.updateLoanStatus(id, status);
+            LoanApplicationDTO updatedLoan = loanService.updateLoanStatus(id, status, adminUsername, chamaId);
             logger.info("✅ Loan {} status updated to {}", id, status);
             return ResponseEntity.ok(updatedLoan);
         } catch (Exception e) {

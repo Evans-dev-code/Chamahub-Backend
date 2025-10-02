@@ -66,9 +66,10 @@ public class JwtTokenFilter extends OncePerRequestFilter {
 
                 // Attach userId to request attribute for controllers to access
                 request.setAttribute("userId", userId);
+                request.setAttribute("role", role);
                 logger.info("✅ userId set in request attributes: {}", request.getAttribute("userId"));
+                logger.info("✅ role set in request attributes: {}", request.getAttribute("role"));
                 logger.info("JWT Filter applied to request path: {}", request.getRequestURI());
-
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 logger.info("✅ Authentication set in SecurityContext");
 

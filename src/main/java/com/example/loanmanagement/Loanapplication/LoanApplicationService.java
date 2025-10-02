@@ -5,6 +5,7 @@ import com.example.loanmanagement.Member.MemberEntity;
 import com.example.loanmanagement.Member.MemberRepository;
 import com.example.loanmanagement.User.UserEntity;
 import com.example.loanmanagement.User.UserRepository;
+import com.example.loanmanagement.User.EmailService;
 import com.example.loanmanagement.Chama.ChamaEntity;
 import com.example.loanmanagement.Chama.ChamaRepository;
 import org.springframework.stereotype.Service;
@@ -24,19 +25,22 @@ public class LoanApplicationService {
     private final UserRepository userRepo;
     private final MemberRepository memberRepo;
     private final LoanpaymentService paymentService;
-    private final ChamaRepository chamaRepo; // Added for admin validation
+    private final ChamaRepository chamaRepo;
+    private final EmailService emailService; // ✅ Added email service
 
     public LoanApplicationService(
             LoanApplicationRepository loanRepo,
             UserRepository userRepo,
             MemberRepository memberRepo,
             LoanpaymentService paymentService,
-            ChamaRepository chamaRepo) {
+            ChamaRepository chamaRepo,
+            EmailService emailService) {
         this.loanRepo = loanRepo;
         this.userRepo = userRepo;
         this.memberRepo = memberRepo;
         this.paymentService = paymentService;
         this.chamaRepo = chamaRepo;
+        this.emailService = emailService;
     }
 
     // ✅ Member applies for a loan in a specific chama
@@ -51,8 +55,6 @@ public class LoanApplicationService {
                 .filter(m -> m.getChama().getId().equals(chamaId))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("User is not a member of this chama"));
-
-        logger.info("✅ User {} is member of chama {}", username, chamaId);
 
         LoanApplicationEntity loan = new LoanApplicationEntity();
         loan.setFullName(dto.fullName);
@@ -72,7 +74,15 @@ public class LoanApplicationService {
         loan.setMember(member);
 
         loanRepo.save(loan);
-        logger.info("✅ Loan application saved with ID: {}", loan.getId());
+
+        // ✅ Send confirmation email
+        emailService.sendEmail(
+                loan.getEmail(),
+                "Loan Application Submitted",
+                "Hello " + loan.getFullName() + ",\n\nYour loan application of amount " +
+                        loan.getAmount() + " has been submitted successfully and is currently under review.\n\n- ChamaHub Team"
+        );
+
         return mapToDTO(loan);
     }
 
@@ -88,26 +98,18 @@ public class LoanApplicationService {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("User is not part of this chama"));
 
-        List<LoanApplicationDTO> loans = loanRepo.findByMember(member)
+        return loanRepo.findByMember(member)
                 .stream().map(this::mapToDTO).collect(Collectors.toList());
-
-        logger.info("✅ Found {} loan applications for user {}", loans.size(), username);
-        return loans;
     }
 
-    // ✅ Admin: get all loans for their chama (with admin validation)
+    // ✅ Admin: get all loans for their chama
     public List<LoanApplicationDTO> getLoansByChama(Long chamaId) {
-        logger.info("📋 Admin fetching all loans for chama {}", chamaId);
-
-        List<LoanApplicationDTO> loans = loanRepo.findByMember_Chama_Id(chamaId).stream()
+        return loanRepo.findByMember_Chama_Id(chamaId).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
-
-        logger.info("✅ Found {} loans for chama {}", loans.size(), chamaId);
-        return loans;
     }
 
-    // ✅ Validate if user is admin of a chama (helper method for controllers)
+    // ✅ Check if user is admin of a chama
     public boolean isUserAdminOfChama(String username, Long chamaId) {
         try {
             UserEntity user = userRepo.findByUsername(username)
@@ -116,21 +118,15 @@ public class LoanApplicationService {
             ChamaEntity chama = chamaRepo.findById(chamaId)
                     .orElseThrow(() -> new RuntimeException("Chama not found"));
 
-            // Assuming your ChamaEntity has a createdBy field that stores user ID
-            boolean isAdmin = chama.getCreatedBy().equals(user.getId());
-            logger.info("🔍 User {} admin status for chama {}: {}", username, chamaId, isAdmin);
-            return isAdmin;
+            return chama.getCreatedBy().equals(user.getId());
         } catch (Exception e) {
             logger.error("❌ Error checking admin status: {}", e.getMessage());
             return false;
         }
     }
 
-    // ✅ Update loan status (approve/reject) with chama validation
+    // ✅ Admin approves/rejects loan with notification
     public LoanApplicationDTO updateLoanStatus(Long id, String status, String adminUsername, Long chamaId) {
-        logger.info("🔄 Admin {} updating loan {} status to {} in chama {}", adminUsername, id, status, chamaId);
-
-        // Validate admin owns the chama
         if (!isUserAdminOfChama(adminUsername, chamaId)) {
             throw new RuntimeException("You are not authorized to modify loans in this chama");
         }
@@ -138,23 +134,20 @@ public class LoanApplicationService {
         LoanApplicationEntity loan = loanRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
-        // Double-check that loan belongs to the specified chama
         if (!loan.getMember().getChama().getId().equals(chamaId)) {
             throw new RuntimeException("Loan does not belong to the specified chama");
         }
 
         loan.setStatus(status.toUpperCase());
         loanRepo.save(loan);
-        logger.info("✅ Loan {} status updated to {}", id, status);
-        return mapToDTO(loan);
-    }
 
-    // ✅ Original update method (for backward compatibility)
-    public LoanApplicationDTO updateLoanStatus(Long id, String status) {
-        LoanApplicationEntity loan = loanRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Loan not found"));
-        loan.setStatus(status.toUpperCase());
-        loanRepo.save(loan);
+        // ✅ Notify applicant
+        String subject = "Loan Application " + loan.getStatus();
+        String body = "Hello " + loan.getFullName() + ",\n\nYour loan application (ID: " + loan.getId() +
+                ") has been " + loan.getStatus().toLowerCase() + ".\n\n- ChamaHub Team";
+
+        emailService.sendEmail(loan.getEmail(), subject, body);
+
         return mapToDTO(loan);
     }
 
@@ -165,6 +158,16 @@ public class LoanApplicationService {
 
         double totalPaid = paymentService.getTotalPaidForLoan(loanId);
         double balance = loan.getTotalRepayment() - totalPaid;
+
+        // ✅ Optional notification when loan is fully repaid
+        if (balance <= 0) {
+            emailService.sendEmail(
+                    loan.getEmail(),
+                    "🎉 Loan Fully Repaid",
+                    "Hello " + loan.getFullName() + ",\n\nCongratulations! Your loan (ID: " + loanId +
+                            ") has been fully repaid.\n\n- ChamaHub Team"
+            );
+        }
 
         return new LoanStatusDTO(loan, totalPaid, balance);
     }

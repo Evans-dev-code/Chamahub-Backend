@@ -34,6 +34,12 @@ public class LoanApplicationEntity {
 
     private LocalDate applicationDate;
 
+    // NEW: when admin approves the loan
+    private LocalDate approvalDate;
+
+    // NEW: due date for repayment (used by LoanpaymentService scheduling)
+    private LocalDate dueDate;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id")
     @JsonIgnore
@@ -43,6 +49,8 @@ public class LoanApplicationEntity {
         this.status = "PENDING";
         this.applicationDate = LocalDate.now();
     }
+
+    // --- existing getters/setters ---
 
     public Long getId() {
         return id;
@@ -164,6 +172,25 @@ public class LoanApplicationEntity {
         this.applicationDate = applicationDate;
     }
 
+    // --- NEW getters/setters ---
+
+    public LocalDate getApprovalDate() {
+        return approvalDate;
+    }
+
+    public void setApprovalDate(LocalDate approvalDate) {
+        this.approvalDate = approvalDate;
+    }
+
+    public LocalDate getDueDate() {
+        return dueDate;
+    }
+
+    public void setDueDate(LocalDate dueDate) {
+        this.dueDate = dueDate;
+    }
+
+    // --- member mapping ---
     public MemberEntity getMember() { return member; }
     public void setMember(MemberEntity member) { this.member = member; }
 }
