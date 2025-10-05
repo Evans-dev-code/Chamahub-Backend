@@ -109,4 +109,18 @@ public class EmailService {
                 "Best regards,\nChamaHub Team";
         sendEmail(userEmail, subject, body);
     }
+
+    public void sendPasswordResetEmail(String userEmail, String fullName, String resetLink) {
+        String subject = "Password Reset Request 🔒";
+        String body = "Hello " + fullName + ",\n\n"
+                + "We received a request to reset your password for your ChamaHub account.\n\n"
+                + "Please click the link below to set a new password:\n"
+                + resetLink + "\n\n"
+                + "⚠️ Note: This link will expire in 15 minutes for your security.\n\n"
+                + "If you didn’t request this, you can safely ignore this email.\n\n"
+                + "Best regards,\nChamaHub Team";
+
+        sendEmail(userEmail, subject, body);
+        logger.info("🔐 Password reset email sent -> To: {}", userEmail);
+    }
 }
