@@ -27,9 +27,6 @@ public class ChamaService {
         this.memberRepository = memberRepository;
     }
 
-    /**
-     * ✅ Create a new Chama and assign the creator as ADMIN
-     */
     @Transactional
     public ChamaEntity createChama(CreateChamaRequest request, Long userId) {
         UserEntity creator = userRepository.findById(userId)
@@ -39,7 +36,6 @@ public class ChamaService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Chama name already taken");
         }
 
-        // Generate unique joinCode
         String joinCode = generateUniqueCode();
 
         ChamaEntity chama = new ChamaEntity();
@@ -50,7 +46,6 @@ public class ChamaService {
 
         chamaRepository.save(chama);
 
-        // Add creator as ADMIN member
         MemberEntity member = new MemberEntity();
         member.setUser(creator);
         member.setChama(chama);
@@ -60,9 +55,6 @@ public class ChamaService {
         return chama;
     }
 
-    /**
-     * ✅ User joins a chama with a join code → return ChamaEntity
-     */
     @Transactional
     public ChamaEntity joinChama(String joinCode, Long userId) {
         UserEntity user = userRepository.findById(userId)
@@ -71,13 +63,11 @@ public class ChamaService {
         ChamaEntity chama = chamaRepository.findByJoinCode(joinCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid join code"));
 
-        // Prevent duplicate memberships
         boolean alreadyMember = memberRepository.existsByUserAndChama(user, chama);
         if (alreadyMember) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "You are already a member of this chama");
         }
 
-        // Add as MEMBER
         MemberEntity member = new MemberEntity();
         member.setUser(user);
         member.setChama(chama);
@@ -87,9 +77,6 @@ public class ChamaService {
         return chama;
     }
 
-    /**
-     * ✅ Get all chamas that a user belongs to
-     */
     @Transactional(readOnly = true)
     public List<ChamaEntity> getChamasForUser(Long userId) {
         UserEntity user = userRepository.findById(userId)
@@ -102,9 +89,6 @@ public class ChamaService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * ✅ Regenerate a join code for an existing chama (admin only)
-     */
     @Transactional
     public String regenerateJoinCode(Long chamaId, Long requesterId) {
         ChamaEntity chama = chamaRepository.findById(chamaId)
@@ -113,7 +97,6 @@ public class ChamaService {
         UserEntity requester = userRepository.findById(requesterId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        // Optional check → only creator can regenerate
         if (chama.getCreatedBy() == null || !chama.getCreatedBy().getId().equals(requester.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to regenerate the join code for this chama");
         }
@@ -125,9 +108,6 @@ public class ChamaService {
         return newCode;
     }
 
-    /**
-     * ✅ Helper to generate unique join codes
-     */
     private String generateUniqueCode() {
         return "CHAMA-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
     }

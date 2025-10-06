@@ -61,6 +61,22 @@ public class ChamaRulesController {
         }
     }
 
+    @GetMapping("/chama/{chamaId}")
+    public ResponseEntity<?> getChamaRules(@PathVariable Long chamaId, HttpServletRequest request) {
+        try {
+            Long userId = extractUserId(request);
+            String role = extractRole(request);
+
+            log.info("User {} with role {} fetching chama rules for chama {}", userId, role, chamaId);
+
+            ChamaRulesDTO rules = chamaRulesService.getChamaRules(chamaId);
+            return ResponseEntity.ok(rules);
+        } catch (RuntimeException e) {
+            log.error("Error fetching chama rules: {}", e.getMessage());
+            return ResponseEntity.status(404).body("Error: " + e.getMessage());
+        }
+    }
+
     // ===== Delete rules =====
     @DeleteMapping("/chama/{chamaId}")
     public ResponseEntity<?> deleteChamaRules(@PathVariable Long chamaId, HttpServletRequest request) {

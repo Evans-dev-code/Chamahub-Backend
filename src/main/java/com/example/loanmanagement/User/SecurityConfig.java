@@ -28,46 +28,69 @@ public class SecurityConfig {
         this.jwtTokenFilter = jwtTokenFilter;
     }
 
+    // === Password Encoder ===
     @Bean
     @Primary
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    // === Authentication Manager ===
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
+    // === Security Configuration ===
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // --- Enable CORS + Disable CSRF ---
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
+
+                // --- Stateless Session ---
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // --- Unauthorized Handler ---
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint((req, res, ex) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+                        .authenticationEntryPoint((req, res, ex) ->
+                                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
                 )
+
+                // --- Authorization Rules ---
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/signup",
+                        // ✅ Public endpoints
+                        .requestMatchers(
+                                "/api/auth/signup",
                                 "/api/auth/login",
                                 "/api/auth/forgot-password",
                                 "/api/auth/reset-password",
                                 "/api/auth/check-username/**",
-                                "/api/auth/check-email/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+                                "/api/auth/check-email/**",
+                                "/api/admin-invitations/accept"
+                        ).permitAll()
+
+                        // 🔒 Restricted endpoints
+                        .requestMatchers("/api/admin-invitations/invite").hasAuthority("ROLE_SUPER_ADMIN") // only super admin can invite
+                        .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
                         .requestMatchers("/api/user/**").hasAuthority("ROLE_USER")
+
+                        // --- Any other request must be authenticated ---
                         .anyRequest().authenticated()
                 )
+
+                // --- JWT Filter ---
                 .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+    // === CORS Config ===
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:4200"));  // Adjust as needed
+        config.setAllowedOrigins(List.of("http://localhost:4200"));  // ✅ your Angular app
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);
@@ -77,4 +100,3 @@ public class SecurityConfig {
         return source;
     }
 }
-

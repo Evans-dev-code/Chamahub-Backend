@@ -123,4 +123,16 @@ public class EmailService {
         sendEmail(userEmail, subject, body);
         logger.info("🔐 Password reset email sent -> To: {}", userEmail);
     }
+
+    public void sendAdminInvite(String email, String inviteLink) {
+        String subject = "You're Invited to Join as an Admin 🎉";
+        String body = "Hello,\n\n" +
+                "You have been invited to join ChamaHub as an Admin.\n\n" +
+                "Please click the link below to set up your admin account:\n" +
+                inviteLink + "\n\n" +
+                "⚠️ Note: This invitation will expire in 48 hours.\n\n" +
+                "Best regards,\nChamaHub Super Admin Team";
+        sendEmail(email, subject, body);
+    }
+
 }
